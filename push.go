@@ -78,6 +78,16 @@ type WSClient struct {
 	wssClient  *websocket.Conn
 }
 
+func (cli *WSClient) ReadMessage() ([]byte, error) {
+	cli.wssLock.Lock()
+	defer cli.wssLock.Unlock()
+	_, rmsg, err := cli.wssClient.ReadMessage()
+	if err != nil {
+		return nil, err
+	}
+	return rmsg, nil
+}
+
 func setchannelids() (err error) {
 	p, err := NewClient("", "")
 	if err != nil {
@@ -182,7 +192,7 @@ func (ws *WSClient) subscribe(chid, chname string) (err error) {
 			default:
 			}
 
-			_, rmsg, err = ws.wssClient.ReadMessage()
+			rmsg, err = ws.ReadMessage()
 			if err != nil {
 				return
 			}
