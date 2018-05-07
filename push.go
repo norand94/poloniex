@@ -75,12 +75,13 @@ type WSClient struct {
 	logger     Logger
 	wssStopChs map[string]chan bool
 	wssLock    *sync.Mutex
+	wmu        *sync.Mutex
 	wssClient  *websocket.Conn
 }
 
 func (cli *WSClient) ReadMessage() ([]byte, error) {
-	cli.wssLock.Lock()
-	defer cli.wssLock.Unlock()
+	cli.wmu.Lock()
+	defer cli.wmu.Unlock()
 	_, rmsg, err := cli.wssClient.ReadMessage()
 	if err != nil {
 		return nil, err
@@ -89,8 +90,8 @@ func (cli *WSClient) ReadMessage() ([]byte, error) {
 }
 
 func (cli *WSClient) WriteMessage(msg []byte) error {
-	cli.wssLock.Lock()
-	defer cli.wssLock.Unlock()
+	cli.wmu.Lock()
+	defer cli.wmu.Unlock()
 	return cli.wssClient.WriteMessage(1, msg)
 }
 
@@ -134,6 +135,7 @@ func NewWSClient(purl *url.URL, args ...bool) (wsclient *WSClient, err error) {
 		Subs:       make(map[string]chan interface{}),
 		wssStopChs: make(map[string]chan bool),
 		wssLock:    &sync.Mutex{},
+		wmu:        &sync.Mutex{},
 	}
 
 	if len(args) > 0 && args[0] {
