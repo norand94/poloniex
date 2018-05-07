@@ -3,11 +3,14 @@ package poloniex
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
-	"golang.org/x/net/websocket"
+	"github.com/gorilla/websocket"
 )
 
 const (
@@ -97,8 +100,15 @@ func setchannelids() (err error) {
 	return
 }
 
-func NewWSClient(args ...bool) (wsclient *WSClient, err error) {
-	ws, err := websocket.Dial(pushAPIUrl, "", origin)
+func NewWSClient(purl *url.URL, args ...bool) (wsclient *WSClient, err error) {
+	dialer := &websocket.Dialer{
+		HandshakeTimeout: 45 * time.Second,
+	}
+
+	if purl != nil {
+		dialer.Proxy = http.ProxyURL(purl)
+	}
+	ws, _, err := dialer.Dial(pushAPIUrl, nil)
 	if err != nil {
 		return
 	}
@@ -146,7 +156,7 @@ func (ws *WSClient) subscribe(chid, chname string) (err error) {
 		return err
 	}
 
-	_, err = ws.wssClient.Write(msg)
+	err = ws.wssClient.WriteMessage(1, msg)
 	if err != nil {
 		return err
 	}
@@ -158,7 +168,7 @@ func (ws *WSClient) subscribe(chid, chname string) (err error) {
 	go func(chid string) {
 		var imsg []interface{}
 		var wsupdate interface{}
-		var rmsg = make([]byte, 128)
+		var rmsg []byte
 
 		for {
 			select {
@@ -172,12 +182,12 @@ func (ws *WSClient) subscribe(chid, chname string) (err error) {
 			default:
 			}
 
-			read_len, err := ws.wssClient.Read(rmsg)
+			_, rmsg, err = ws.wssClient.ReadMessage()
 			if err != nil {
 				return
 			}
 
-			err = json.Unmarshal(rmsg[:read_len], &imsg)
+			err = json.Unmarshal(rmsg, &imsg)
 			if err != nil {
 				continue
 			}
@@ -373,7 +383,7 @@ func (ws *WSClient) unsubscribe(chid string) (err error) {
 		return err
 	}
 
-	_, err = ws.wssClient.Write(msg)
+	err = ws.wssClient.WriteMessage(1, msg)
 	if err != nil {
 		return err
 	}
