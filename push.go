@@ -88,6 +88,12 @@ func (cli *WSClient) ReadMessage() ([]byte, error) {
 	return rmsg, nil
 }
 
+func (cli *WSClient) WriteMessage(msg []byte) error {
+	cli.wssLock.Lock()
+	defer cli.wssLock.Unlock()
+	return cli.wssClient.WriteMessage(1, msg)
+}
+
 func setchannelids() (err error) {
 	p, err := NewClient("", "")
 	if err != nil {
@@ -166,7 +172,7 @@ func (ws *WSClient) subscribe(chid, chname string) (err error) {
 		return err
 	}
 
-	err = ws.wssClient.WriteMessage(1, msg)
+	ws.WriteMessage(msg)
 	if err != nil {
 		return err
 	}
@@ -393,7 +399,7 @@ func (ws *WSClient) unsubscribe(chid string) (err error) {
 		return err
 	}
 
-	err = ws.wssClient.WriteMessage(1, msg)
+	err = ws.WriteMessage(msg)
 	if err != nil {
 		return err
 	}
